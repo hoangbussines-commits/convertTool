@@ -7,6 +7,193 @@ using System.IO;
 
 class Program
 {
+
+
+    //PROFILE SYSTEM
+    static string GetProfileFolder()
+    {
+        string path = Path.Combine(GetExeFolder(), "profile");
+
+        if (!Directory.Exists(path))
+            Directory.CreateDirectory(path);
+
+        return path;
+    }
+
+    static string GetProfilePath()
+    {
+        return Path.Combine(GetProfileFolder(), "profile.json");
+    }
+
+    static void SaveProfile(UserProfile profile)
+    {
+        string json = System.Text.Json.JsonSerializer.Serialize(
+            profile,
+            new System.Text.Json.JsonSerializerOptions
+            {
+                WriteIndented = true
+            });
+
+        File.WriteAllText(GetProfilePath(), json);
+    }
+
+    static UserProfile LoadProfile()
+    {
+        if (!File.Exists(GetProfilePath()))
+            return null;
+
+        return System.Text.Json.JsonSerializer.Deserialize<UserProfile>(
+            File.ReadAllText(GetProfilePath()));
+    }
+
+    static string EncryptString(string text)
+    {
+        byte[] data = System.Text.Encoding.UTF8.GetBytes(text);
+
+        byte[] encrypted = System.Security.Cryptography.ProtectedData.Protect(
+            data,
+            null,
+            System.Security.Cryptography.DataProtectionScope.CurrentUser
+        );
+
+        return Convert.ToBase64String(encrypted);
+    }
+
+    static string DecryptString(string encryptedText)
+    {
+        byte[] data = Convert.FromBase64String(encryptedText);
+
+        byte[] decrypted = System.Security.Cryptography.ProtectedData.Unprotect(
+            data,
+            null,
+            System.Security.Cryptography.DataProtectionScope.CurrentUser
+        );
+
+        return System.Text.Encoding.UTF8.GetString(decrypted);
+    }
+
+    static void SetupProfile()
+    {
+        while (true)
+        {
+            string username, email, password, display;
+
+            // Validate username
+            while (true)
+            {
+                Console.Write("Enter username (required): ");
+                username = Console.ReadLine()?.Trim();
+
+                if (!string.IsNullOrEmpty(username))
+                    break;
+
+                Console.WriteLine("Username cannot be empty!");
+            }
+
+            // Email optional, accept empty
+            Console.Write("Enter email (optional): ");
+            email = Console.ReadLine()?.Trim();
+
+            // Validate password
+            while (true)
+            {
+                Console.Write("Enter password (required): ");
+                password = ReadPassword();
+
+                if (!string.IsNullOrEmpty(password))
+                    break;
+
+                Console.WriteLine("Password cannot be empty!");
+            }
+
+            // Validate display name
+            while (true)
+            {
+                Console.Write("Enter display name (required): ");
+                display = Console.ReadLine()?.Trim();
+
+                if (!string.IsNullOrEmpty(display))
+                    break;
+
+                Console.WriteLine("Display name cannot be empty!");
+            }
+
+            Console.Write("Confirm setup? (Y/N): ");
+            string confirm = Console.ReadLine().ToUpper();
+
+            if (confirm == "Y")
+            {
+                SaveProfile(new UserProfile
+                {
+                    Username = username,
+                    Email = email ?? "",  // Handle null
+                    Password = EncryptString(password),
+                    DisplayName = display
+                });
+
+                RestartApp();
+                return;
+            }
+
+            Console.WriteLine("Restarting setup...");
+        }
+    }
+
+    static void AdvancedCLIMode()
+    {
+        Console.Clear();
+        ShowBanner();
+
+        var profile = LoadProfile();
+        if (profile != null)
+        {
+            Console.WriteLine($"Advanced Mode - User: {profile.DisplayName}");
+        }
+        else
+        {
+            Console.WriteLine("Advanced Mode - User: Normal");
+        }
+
+        Console.WriteLine("Type 'exit' to return to normal mode.");
+        Console.WriteLine();
+
+        while (true)
+        {
+            Console.Write(GetAdvancedPrompt());
+
+
+            string cmd = Console.ReadLine()?.Trim().ToLower();
+
+            if (string.IsNullOrEmpty(cmd) || cmd == "exit")
+            {
+                // DÙNG HÀM CÓ SẴN RestartApp()!
+                RestartApp();
+                return;
+            }
+
+            Console.WriteLine("Unknown command.");
+        }
+    }
+
+    static void RestartApp()
+    {
+        string exe = System.Diagnostics.Process
+            .GetCurrentProcess()
+            .MainModule.FileName;
+
+        // Clear console trước
+        Console.Clear();
+
+        // Start process mới
+        System.Diagnostics.Process.Start(exe);
+
+        // Delay một chút để process mới kịp start
+        System.Threading.Thread.Sleep(100);
+
+        // Exit process cũ
+        Environment.Exit(0);
+    }
+    //END PROFILE SYSTEM
     static void ShowBanner()
     {
         Console.WriteLine(@"
@@ -26,14 +213,32 @@ Powered by hycoredragon
     static void ShowHelpMenu()
     {
         Console.WriteLine();
-        Console.WriteLine("Available Commands:");
+        Console.WriteLine("════════════════════════════════════════════════════");
+        Console.WriteLine("                    COMMAND LIST");
+        Console.WriteLine("════════════════════════════════════════════════════");
         Console.WriteLine();
-        Console.WriteLine(" clearopen   - Remove Open With integration");
-        Console.WriteLine(" help        - Show this help menu");
-        Console.WriteLine(" info        - Show tool information");
-        Console.WriteLine(" (ENTER)     - Continue to main tool");
+
+        WriteCmd("setupprofile", "Create profile (first time setup)");
+        WriteCmd("setupprofile -r", "Reset and delete current profile");
+        Console.WriteLine();
+        WriteCmd("clearopen", "Remove Open With integration");
+        WriteCmd("help", "Show this help menu");
+        WriteCmd("info", "Show tool information");
+        WriteCmd("apppath/path/where", "Show application paths and file info");  
+        WriteCmd("change prompt/prompt", "Change CLI prompt style"); 
+        WriteCmd("(ENTER)", "Continue to main tool");
+
         Console.WriteLine();
     }
+
+    static void WriteCmd(string cmd, string desc)
+    {
+        Console.Write(" ");
+        Console.Write(cmd.PadRight(18));
+        Console.Write(" - ");
+        Console.WriteLine(desc);
+    }
+
 
     static void ShowInfo()
     {
@@ -56,12 +261,36 @@ Powered by hycoredragon
     static void ToolCLI()
     {
         ShowBanner();
-        ShowHelpMenu();   
+
+        var profile = LoadProfile();
+
+        if (profile != null)
+        {
+            Console.WriteLine($"Welcome back! User: {profile.DisplayName}");
+
+            while (true)
+            {
+                Console.Write("Enter password: ");
+                string pass = ReadPassword();
+
+                string realPass = DecryptString(profile.Password);
+
+                if (pass == realPass)
+                    break;
+
+                Console.WriteLine("Wrong password.");
+            }
+        }
+        else
+        {
+            Console.WriteLine("Welcome back! User: Normal");
+        }
+
+        ShowHelpMenu();
 
         while (true)
         {
-
-            Console.Write("ToolCLI> ");
+            Console.Write(GetPrompt()); 
 
             string cmd = Console.ReadLine()?.Trim().ToLower();
 
@@ -89,6 +318,37 @@ Powered by hycoredragon
                     DevDebugMode();
                     break;
 
+                case "setupprofile":
+
+                    if (ProfileExists())
+                    {
+                        Console.WriteLine("Profile already exists.");
+                        Console.WriteLine("Use 'setupprofile -r' to reset profile.");
+                        break;
+                    }
+
+                    SetupProfile();
+                    break;
+
+                case "setupprofile -r":
+
+                    ResetProfileFlow();
+                    break;
+                case "adv":
+                    AdvancedCLIMode();
+                    break;
+
+                case "apppath":
+                case "path":
+                case "where":
+                    ShowCurrentPaths();
+                    break;
+
+                case "change prompt":
+                case "prompt":
+                    ChangePromptMenu();
+                    continue;
+
 
                 default:
                     Console.WriteLine("Unknown command.");
@@ -97,6 +357,268 @@ Powered by hycoredragon
         }
 
 
+    }
+
+    static string GetLinuxStylePrompt(string mode = "")
+    {
+        string username = Environment.UserName;
+        string hostname = Environment.MachineName;
+
+        // Lấy current directory, thay thế \ bằng / cho giống Unix
+        string currentDir = Environment.CurrentDirectory.Replace('\\', '/');
+
+        // Rút gọn home directory thành ~
+        string homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).Replace('\\', '/');
+        if (currentDir.StartsWith(homePath))
+        {
+            currentDir = "~" + currentDir.Substring(homePath.Length);
+        }
+
+        // Thêm mode nếu có
+        string fullMode = string.IsNullOrEmpty(mode) ? "ToolCLI" : $"ToolCLI/{mode}";
+
+        return $"{username}@{hostname}:{currentDir}/{fullMode}$ ";
+    }
+
+    static string GetAdvancedPrompt()
+    {
+        string promptType = LoadCurrentPrompt();
+
+        switch (promptType)
+        {
+            case "linux":
+                return GetLinuxStylePrompt("advanced");
+            case "simple":
+                return "ToolCLI/advanced> ";
+            case "classic":
+                return $"{Environment.CurrentDirectory}> convertTool/advanced> ";
+            case "default":
+            default:
+                string drive = Path.GetPathRoot(Environment.CurrentDirectory).TrimEnd('\\');
+                return $"{drive}>ToolCLI/advanced> ";
+        }
+    }
+
+    static void ChangePromptMenu()
+    {
+        string promptFile = Path.Combine(GetProfileFolder(), "setting_prompt.json");
+
+        // Load prompt setting hiện tại
+        string currentPrompt = LoadCurrentPrompt();
+
+        Console.WriteLine();
+        Console.WriteLine("════════════════════════════════════════════════════");
+        Console.WriteLine("               PROMPT SELECTION MENU");
+        Console.WriteLine("════════════════════════════════════════════════════");
+        Console.WriteLine();
+
+        Console.WriteLine($"Current prompt: {currentPrompt}");
+        Console.WriteLine();
+
+        Console.WriteLine("1. Default (J:>ToolCLI>)");
+        Console.WriteLine("2. Linux Style (user@host:~/ToolCLI$)");
+        Console.WriteLine("3. Simple (ToolCLI>)");
+        Console.WriteLine("4. Classic (C:\\> convertTool)");
+        Console.WriteLine();
+
+        Console.Write("Choose (1-4): ");
+        string choice = Console.ReadLine();
+
+        string newPrompt = "";
+
+        switch (choice)
+        {
+            case "1":
+                newPrompt = "default";
+                break;
+            case "2":
+                newPrompt = "linux";
+                break;
+            case "3":
+                newPrompt = "simple";
+                break;
+            case "4":
+                newPrompt = "classic";
+                break;
+            default:
+                Console.WriteLine("Invalid choice.");
+                return;
+        }
+
+        // Save to profile
+        SavePromptSetting(newPrompt);
+
+        Console.WriteLine();
+        Console.WriteLine($"Prompt changed to: {newPrompt}");
+        Console.WriteLine("Restarting app to apply changes...");
+
+        // Restart để apply prompt mới
+        RestartApp();
+    }
+
+    static string LoadCurrentPrompt()
+    {
+        string promptFile = Path.Combine(GetProfileFolder(), "setting_prompt.json");
+
+        if (!File.Exists(promptFile))
+            return "default"; // default prompt
+
+        try
+        {
+            string json = File.ReadAllText(promptFile);
+            return System.Text.Json.JsonSerializer.Deserialize<string>(json) ?? "default";
+        }
+        catch
+        {
+            return "default";
+        }
+    }
+
+    static void SavePromptSetting(string promptType)
+    {
+        string promptFile = Path.Combine(GetProfileFolder(), "setting_prompt.json");
+
+        try
+        {
+            string json = System.Text.Json.JsonSerializer.Serialize(promptType);
+            File.WriteAllText(promptFile, json);
+        }
+        catch
+        {
+            // silent fail
+        }
+    }
+
+    static string GetPrompt()
+    {
+        string promptType = LoadCurrentPrompt();
+
+        switch (promptType)
+        {
+            case "linux":
+                return GetLinuxStylePrompt();
+            case "simple":
+                return "ToolCLI> ";
+            case "classic":
+                return $"{Environment.CurrentDirectory}> convertTool> ";
+            case "default":
+            default:
+                // default: J:>ToolCLI>
+                string drive = Path.GetPathRoot(Environment.CurrentDirectory).TrimEnd('\\');
+                return $"{drive}>ToolCLI> ";
+        }
+    }
+
+    static void ShowCurrentPaths()
+    {
+        string exeFolder = GetExeFolder();
+        string mainExe = Path.Combine(exeFolder, "convertTool.exe");
+        string shellExe = Path.Combine(exeFolder, "convertTool_shell.exe");
+        string historyFolder = GetHistoryFolder();
+        string profileFolder = GetProfileFolder();
+
+        Console.WriteLine();
+        Console.WriteLine("════════════════════════════════════════════════════");
+        Console.WriteLine("                    CURRENT PATHS");
+        Console.WriteLine("════════════════════════════════════════════════════");
+        Console.WriteLine();
+
+        Console.WriteLine($" Main App:       {mainExe}");
+        Console.WriteLine($" Shell Helper:   {(File.Exists(shellExe) ? shellExe : "Not extracted")}");
+        Console.WriteLine($" History Folder: {historyFolder}");
+        Console.WriteLine($" Profile Folder: {profileFolder}");
+        Console.WriteLine($" Working Dir:    {Environment.CurrentDirectory}");
+        Console.WriteLine();
+
+        // Bonus: show file info
+        Console.WriteLine("════════════════════════════════════════════════════");
+        Console.WriteLine("                     FILE INFO");
+        Console.WriteLine("════════════════════════════════════════════════════");
+        Console.WriteLine();
+
+        if (File.Exists(mainExe))
+        {
+            var mainInfo = new FileInfo(mainExe);
+            Console.WriteLine($"convertTool.exe:     {mainInfo.Length / 1024} KB, {mainInfo.LastWriteTime}");
+        }
+
+        if (File.Exists(shellExe))
+        {
+            var shellInfo = new FileInfo(shellExe);
+            Console.WriteLine($"convertTool_shell.exe: {shellInfo.Length / 1024} KB, {shellInfo.LastWriteTime}");
+        }
+
+        // Count files in history
+        if (Directory.Exists(historyFolder))
+        {
+            int historyCount = Directory.GetFiles(historyFolder).Length;
+            Console.WriteLine($"History files: {historyCount} files");
+        }
+
+        Console.WriteLine();
+    }
+
+    static void DeleteProfile()
+    {
+        try
+        {
+            string path = GetProfilePath();
+
+            if (File.Exists(path))
+                File.Delete(path);
+        }
+        catch { }
+    }
+
+    static void ResetProfileFlow()
+    {
+        if (!ProfileExists())
+        {
+            Console.WriteLine("No profile found.");
+            return;
+        }
+
+        // Load profile hiện tại
+        var profile = LoadProfile();
+        if (profile == null)
+        {
+            Console.WriteLine("Cannot load profile.");
+            return;
+        }
+
+        Console.WriteLine("WARNING: This will delete current profile.");
+
+        // Yêu cầu nhập password để xác nhận
+        Console.Write("Enter current password to confirm deletion: ");
+        string enteredPassword = ReadPassword();
+
+        string realPassword = DecryptString(profile.Password);
+
+        if (enteredPassword != realPassword)
+        {
+            Console.WriteLine("Wrong password. Deletion cancelled.");
+            return;
+        }
+
+        Console.Write("Are you absolutely sure? (Type 'DELETE' to confirm): ");
+        string confirm = Console.ReadLine().Trim().ToUpper();
+
+        if (confirm != "DELETE")
+        {
+            Console.WriteLine("Cancelled.");
+            return;
+        }
+
+        DeleteProfile();
+        Console.WriteLine("Profile deleted successfully.");
+
+        // Optional: restart app
+        RestartApp();
+    }
+
+    static bool ProfileExists()
+    {
+        return File.Exists(GetProfilePath());
     }
 
     static string ReadPassword()
