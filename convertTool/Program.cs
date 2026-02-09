@@ -7,8 +7,100 @@ using System.IO;
 
 class Program
 {
+    static void SaveMultiIcon(Bitmap original, List<int> sizes, string path)
+    {
+        using (FileStream fs = new FileStream(path, FileMode.Create))
+        using (BinaryWriter bw = new BinaryWriter(fs))
+        {
+            bw.Write((short)0);
+            bw.Write((short)1);
+            bw.Write((short)sizes.Count);
 
+            long dirStart = fs.Position;
+            bw.Write(new byte[sizes.Count * 16]);
 
+            List<byte[]> imageDatas = new List<byte[]>();
+
+            foreach (int size in sizes)
+            {
+                using (Bitmap resized = new Bitmap(original, new Size(size, size)))
+                using (MemoryStream ms = new MemoryStream())
+                {
+                    resized.Save(ms, ImageFormat.Png);
+                    imageDatas.Add(ms.ToArray());
+                }
+            }
+
+            long dataOffset = 6 + sizes.Count * 16;
+            fs.Position = dirStart;
+
+            for (int i = 0; i < sizes.Count; i++)
+            {
+                int size = sizes[i];
+                byte[] img = imageDatas[i];
+
+                bw.Write((byte)(size >= 256 ? 0 : size));
+                bw.Write((byte)(size >= 256 ? 0 : size));
+                bw.Write((byte)0);
+                bw.Write((byte)0);
+                bw.Write((short)1);
+                bw.Write((short)32);
+                bw.Write(img.Length);
+                bw.Write((int)dataOffset);
+
+                dataOffset += img.Length;
+            }
+
+            fs.Position = fs.Length;
+
+            foreach (var img in imageDatas)
+                bw.Write(img);
+        }
+    }
+
+    static string ShowHistoryMenu()
+    {
+        string history = GetHistoryFolder();
+        var files = Directory.GetFiles(history);
+
+        if (files.Length == 0)
+        {
+            Console.WriteLine("History empty.");
+            return null;
+        }
+
+        Console.WriteLine();
+        Console.WriteLine("=== CONVERT HISTORY ===");
+
+        for (int i = 0; i < files.Length; i++)
+        {
+            Console.WriteLine($"{i + 1} - {Path.GetFileName(files[i])}");
+        }
+
+        Console.WriteLine();
+        Console.Write("Choose file number: ");
+
+        if (int.TryParse(Console.ReadLine(), out int choice))
+        {
+            if (choice >= 1 && choice <= files.Length)
+                return files[choice - 1];
+        }
+
+        return null;
+    }
+    static void DrawProgressBar(int progress, int total)
+    {
+        int barSize = 30;
+
+        double percent = (double)progress / total;
+        int filled = (int)(percent * barSize);
+
+        string bar =
+            new string('█', filled) +
+            new string('░', barSize - filled);
+
+        Console.Write($"\r[{bar}] {(percent * 100):0}%");
+    }
     //PROFILE SYSTEM
     static string GetProfileFolder()
     {
@@ -224,8 +316,8 @@ Powered by hycoredragon
         WriteCmd("clearopen", "Remove Open With integration");
         WriteCmd("help", "Show this help menu");
         WriteCmd("info", "Show tool information");
-        WriteCmd("apppath/path/where", "Show application paths and file info");  
-        WriteCmd("change prompt/prompt", "Change CLI prompt style"); 
+        WriteCmd("apppath/path/where", "Show application paths and file info");
+        WriteCmd("change prompt/prompt", "Change CLI prompt style");
         WriteCmd("(ENTER)", "Continue to main tool");
 
         Console.WriteLine();
@@ -290,7 +382,7 @@ Powered by hycoredragon
 
         while (true)
         {
-            Console.Write(GetPrompt()); 
+            Console.Write(GetPrompt());
 
             string cmd = Console.ReadLine()?.Trim().ToLower();
 
@@ -863,54 +955,15 @@ Powered by hycoredragon
             // silent fail OK
         }
     }
-    static void Main(string[] args)
+
+    static void ProcessConversion(string[] args)
     {
-        ExtractShellTool();
-        LockAllHistoryFiles();
-
-        ToolCLI();
-
-        if (IsFirstRun())
-        {
-            while (true)
-            {
-                Console.WriteLine("Add convertTool to Open With list? (Y/N)");
-
-                var k = Console.ReadKey(true);
-                char c = char.ToUpper(k.KeyChar);
-
-                if (c == 'Y')
-                {
-                    AddToOpenWith();
-                    SetFirstRunDone();
-                    break;
-                }
-                else if (c == 'N')
-                {
-                    SetFirstRunDone();
-                    break;
-                }
-                else
-                {
-                    Console.WriteLine("Please press Y or N.");
-                }
-            }
-        }
-
         try
         {
-           
             string inputPath = null;
-
-            if (args.Length > 0 && args[0].ToLower() == "-info")
-            {
-                Console.WriteLine("convertTool OK");
-                return;
-            }
             if (args.Length == 0)
             {
                 Console.WriteLine("No file selected.");
-
 
                 string historyChoice = ShowHistoryMenu();
 
@@ -933,8 +986,6 @@ Powered by hycoredragon
                 Pause();
                 return;
             }
-
-
 
             Console.WriteLine("=== ICON CONVERT TOOL ===");
             Console.WriteLine();
@@ -976,53 +1027,6 @@ Powered by hycoredragon
                 return;
             }
 
-
-
-            static void DrawProgressBar(int progress, int total)
-            {
-                int barSize = 30;
-
-                double percent = (double)progress / total;
-                int filled = (int)(percent * barSize);
-
-                string bar =
-                    new string('█', filled) +
-                    new string('░', barSize - filled);
-
-                Console.Write($"\r[{bar}] {(percent * 100):0}%");
-            }
-            static string ShowHistoryMenu()
-            {
-                string history = GetHistoryFolder();
-                var files = Directory.GetFiles(history);
-
-                if (files.Length == 0)
-                {
-                    Console.WriteLine("History empty.");
-                    return null;
-                }
-
-                Console.WriteLine();
-                Console.WriteLine("=== CONVERT HISTORY ===");
-
-                for (int i = 0; i < files.Length; i++)
-                {
-                    Console.WriteLine($"{i + 1} - {Path.GetFileName(files[i])}");
-                }
-
-                Console.WriteLine();
-                Console.Write("Choose file number: ");
-
-                if (int.TryParse(Console.ReadLine(), out int choice))
-                {
-                    if (choice >= 1 && choice <= files.Length)
-                        return files[choice - 1];
-                }
-
-                return null;
-            }
-
-
             // ===== COUNT MENU =====
             int count = 1;
 
@@ -1046,7 +1050,6 @@ Powered by hycoredragon
 
                 Console.WriteLine("Re-selecting count...");
             }
-
 
             string historyFolder = GetHistoryFolder();
             string exeFolder = GetExeFolder();
@@ -1089,8 +1092,6 @@ Powered by hycoredragon
                 Console.WriteLine();
                 Console.WriteLine("DONE ");
                 SaveToHistory(inputPath);
-
-
             }
 
             Console.WriteLine();
@@ -1103,58 +1104,78 @@ Powered by hycoredragon
 
         Pause();
     }
-
-    static void SaveMultiIcon(Bitmap original, List<int> sizes, string path)
+    static void Main(string[] args)
     {
-        using (FileStream fs = new FileStream(path, FileMode.Create))
-        using (BinaryWriter bw = new BinaryWriter(fs))
+        ExtractShellTool();
+        LockAllHistoryFiles();
+
+        if (args.Length > 0 && args[0].ToLower() == "-info")
         {
-            bw.Write((short)0);
-            bw.Write((short)1);
-            bw.Write((short)sizes.Count);
+            ShowCommandInfo();
+            return;
+        }
 
-            long dirStart = fs.Position;
-            bw.Write(new byte[sizes.Count * 16]);
+        ToolCLI();
 
-            List<byte[]> imageDatas = new List<byte[]>();
-
-            foreach (int size in sizes)
+        if (IsFirstRun())
+        {
+            while (true)
             {
-                using (Bitmap resized = new Bitmap(original, new Size(size, size)))
-                using (MemoryStream ms = new MemoryStream())
+                Console.WriteLine("Add convertTool to Open With list? (Y/N)");
+
+                var k = Console.ReadKey(true);
+                char c = char.ToUpper(k.KeyChar);
+
+                if (c == 'Y')
                 {
-                    resized.Save(ms, ImageFormat.Png);
-                    imageDatas.Add(ms.ToArray());
+                    AddToOpenWith();
+                    SetFirstRunDone();
+                    break;
+                }
+                else if (c == 'N')
+                {
+                    SetFirstRunDone();
+                    break;
+                }
+                else
+                {
+                    Console.WriteLine("Please press Y or N.");
                 }
             }
-
-            long dataOffset = 6 + sizes.Count * 16;
-            fs.Position = dirStart;
-
-            for (int i = 0; i < sizes.Count; i++)
-            {
-                int size = sizes[i];
-                byte[] img = imageDatas[i];
-
-                bw.Write((byte)(size >= 256 ? 0 : size));
-                bw.Write((byte)(size >= 256 ? 0 : size));
-                bw.Write((byte)0);
-                bw.Write((byte)0);
-                bw.Write((short)1);
-                bw.Write((short)32);
-                bw.Write(img.Length);
-                bw.Write((int)dataOffset);
-
-                dataOffset += img.Length;
-            }
-
-            fs.Position = fs.Length;
-
-            foreach (var img in imageDatas)
-                bw.Write(img);
         }
-    }
 
+        ProcessConversion(args);
+    }
+    //dependency Info 
+    static void ShowCommandInfo()
+    {
+        ShowBanner();
+        const string tool_version = "v1.1.3";
+        const string ownered_by = "hycoredragon";
+        const string runtime_info = ".NET 8 Self-Contained";
+        const string copyright_info = "Copyright (c) 2026 hycoredragon. All rights reserved.";
+        const string discord_info = "https://discord.gg/DuH6c7hhsK";
+        const string repository_info = "https://github.com/hoangbussines-commits/convertTool";
+        const string license_info = "MIT License";
+        const string legal_info = "This tool is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.";
+        const string license_url = "https://opensource.org/licenses/MIT";
+        const string support_info = "For support, visit the Discord server linked above.";
+        const string additional_info = "This tool is developed and maintained by hycoredragon.";
+        Console.WriteLine("convertTool OK");
+        Console.WriteLine($"version: {tool_version}");
+        Console.WriteLine($"owner: {ownered_by}");
+        Console.WriteLine($"runtime: {runtime_info}");
+        Console.WriteLine($"copyright: {copyright_info}");
+        Console.WriteLine($"support: {discord_info}");
+        Console.WriteLine($"repository: {repository_info}");
+        Console.WriteLine($"license: {license_info}");
+        Console.WriteLine("legal: " + legal_info);
+        Console.WriteLine($"license url: {license_url}");
+        Console.WriteLine($"support info: {support_info}");
+        Console.WriteLine($"additional info: {additional_info}");
+
+
+    }
     static void Pause()
     {
         Console.WriteLine();
