@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="convertTool/convertTool.csproj" />
+  <Project Path="convertTool_shell/convertTool_shell.csproj" />
+</Solution>
