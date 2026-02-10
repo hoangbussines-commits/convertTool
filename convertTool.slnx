@@ -1,4 +1,6 @@
 <Solution>
+  <Project Path="ConsoleMG/ConsoleMG.csproj" />
   <Project Path="convertTool/convertTool.csproj" />
   <Project Path="convertTool_shell/convertTool_shell.csproj" />
+  <Project Path="convertTool_updater/convertTool_updater.csproj" />
 </Solution>
