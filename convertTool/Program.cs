@@ -1,12 +1,32 @@
 ﻿using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Contracts;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
+using System.Reflection;
+using System.Runtime.Loader;
+
 
 class Program
 {
+    public static class AppInfo
+    {
+        public const string tool_version = "v1.1.4.1";
+        public const string ownered_by = "hycoredragon";
+        public const string runtime_info = ".NET 8 Self-Contained";
+        public const string copyright_info = "Copyright (c) 2026 hycoredragon. All rights reserved.";
+        public const string discord_info = "https://discord.gg/DuH6c7hhsK";
+        public const string repository_info = "https://github.com/hoangbussines-commits/convertTool";
+        public const string license_info = "MIT License";
+        public const string legal_info = "This tool is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.";
+        public const string license_url = "https://opensource.org/licenses/MIT";
+        public const string support_info = "For support, visit the Discord server linked above.";
+        public const string additional_info = "This tool is developed and maintained by hycoredragon.";
+    }
+
+
     static void SaveMultiIcon(Bitmap original, List<int> sizes, string path)
     {
         using (FileStream fs = new FileStream(path, FileMode.Create))
@@ -65,20 +85,20 @@ class Program
 
         if (files.Length == 0)
         {
-            Console.WriteLine("History empty.");
+            ConsoleMG.WriteLine("History empty.");
             return null;
         }
 
-        Console.WriteLine();
-        Console.WriteLine("=== CONVERT HISTORY ===");
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine("=== CONVERT HISTORY ===");
 
         for (int i = 0; i < files.Length; i++)
         {
-            Console.WriteLine($"{i + 1} - {Path.GetFileName(files[i])}");
+            ConsoleMG.WriteLine($"{i + 1} - {Path.GetFileName(files[i])}");
         }
 
-        Console.WriteLine();
-        Console.Write("Choose file number: ");
+        ConsoleMG.WriteLine();
+        ConsoleMG.Write("Choose file number: ");
 
         if (int.TryParse(Console.ReadLine(), out int choice))
         {
@@ -99,10 +119,9 @@ class Program
             new string('█', filled) +
             new string('░', barSize - filled);
 
-        Console.Write($"\r[{bar}] {(percent * 100):0}%");
+        ConsoleMG.Write($"\r[{bar}] {(percent * 100):0}%");
     }
-    //PROFILE SYSTEM
-    static string GetProfileFolder()
+        static string GetProfileFolder()
     {
         string path = Path.Combine(GetExeFolder(), "profile");
 
@@ -164,53 +183,133 @@ class Program
         return System.Text.Encoding.UTF8.GetString(decrypted);
     }
 
+    static void ViewCurrentProfile()
+    {
+        if (!ProfileExists())
+        {
+            ConsoleMG.WriteLine("❌ No profile found.");
+            ConsoleMG.WriteLine("   Use 'setupprofile' to create one.");
+            return;
+        }
+
+        var profile = LoadProfile();
+        if (profile == null)
+        {
+            ConsoleMG.WriteLine("❌ Cannot load profile.");
+            return;
+        }
+
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine("═══════════════════════════════════════════");
+        ConsoleMG.WriteLine("           CURRENT PROFILE");
+        ConsoleMG.WriteLine("═══════════════════════════════════════════");
+        ConsoleMG.WriteLine();
+
+        ConsoleMG.WriteLine($" Display Name: {profile.DisplayName}");
+        ConsoleMG.WriteLine($" Username:     {profile.Username}");
+
+        if (string.IsNullOrEmpty(profile.Email))
+        {
+            ConsoleMG.WriteLine($" Email:        (empty)");
+        }
+        else
+        {
+            bool emailValid = profile.Email.Contains('@');
+            ConsoleMG.WriteLine($" Email:        {profile.Email} {(emailValid ? "" : "⚠")}");
+        }
+
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine("═══════════════════════════════════════════");
+    }
+
     static void SetupProfile()
     {
         while (true)
         {
             string username, email, password, display;
 
-            // Validate username
-            while (true)
+                        while (true)
             {
-                Console.Write("Enter username (required): ");
+                ConsoleMG.Write("Enter username (required): ");
                 username = Console.ReadLine()?.Trim();
 
                 if (!string.IsNullOrEmpty(username))
                     break;
 
-                Console.WriteLine("Username cannot be empty!");
+                ConsoleMG.WriteLine("Username cannot be empty!");
             }
-
-            // Email optional, accept empty
-            Console.Write("Enter email (optional): ");
+            ConsoleMG.Write("Enter email (optional): ");
             email = Console.ReadLine()?.Trim();
 
-            // Validate password
+            // Nếu email không rỗng VÀ không có @
+            if (!string.IsNullOrEmpty(email) && !email.Contains('@'))
+            {
+                ConsoleMG.WriteLine();
+                ConsoleMG.WriteLine("⚠  INVALID EMAIL FORMAT");
+                ConsoleMG.WriteLine("   Email should contain '@'");
+                ConsoleMG.WriteLine("   Example: user@gmail.com");
+                ConsoleMG.WriteLine();
+
+                // Cho user chọn
+                while (true)
+                {
+                    ConsoleMG.WriteLine("Options:");
+                    ConsoleMG.WriteLine("R - Re-enter email");
+                    ConsoleMG.WriteLine("E - Leave email empty");
+                    ConsoleMG.Write("Choose (R/E): ");
+
+                    string choice = Console.ReadLine().Trim().ToUpper();
+
+                    if (choice == "R")
+                    {
+                        ConsoleMG.Write("Enter email: ");
+                        email = Console.ReadLine()?.Trim();
+
+                        // Check lại format mới
+                        if (string.IsNullOrEmpty(email) || email.Contains('@'))
+                        {
+                            break; // OK hoặc empty
+                        }
+
+                        // Vẫn sai → loop lại
+                        ConsoleMG.WriteLine("Still invalid. Email must contain '@'");
+                        continue;
+                    }
+                    else if (choice == "E")
+                    {
+                        email = ""; // Set empty
+                        break;
+                    }
+                    else
+                    {
+                        ConsoleMG.WriteLine("Invalid choice.");
+                    }
+                }
+            }
+
             while (true)
             {
-                Console.Write("Enter password (required): ");
+                ConsoleMG.Write("Enter password (required): ");
                 password = ReadPassword();
 
                 if (!string.IsNullOrEmpty(password))
                     break;
 
-                Console.WriteLine("Password cannot be empty!");
+                ConsoleMG.WriteLine("Password cannot be empty!");
             }
 
-            // Validate display name
-            while (true)
+                        while (true)
             {
-                Console.Write("Enter display name (required): ");
+                ConsoleMG.Write("Enter display name (required): ");
                 display = Console.ReadLine()?.Trim();
 
                 if (!string.IsNullOrEmpty(display))
                     break;
 
-                Console.WriteLine("Display name cannot be empty!");
+                ConsoleMG.WriteLine("Display name cannot be empty!");
             }
 
-            Console.Write("Confirm setup? (Y/N): ");
+            ConsoleMG.Write("Confirm setup? (Y/N): ");
             string confirm = Console.ReadLine().ToUpper();
 
             if (confirm == "Y")
@@ -218,8 +317,7 @@ class Program
                 SaveProfile(new UserProfile
                 {
                     Username = username,
-                    Email = email ?? "",  // Handle null
-                    Password = EncryptString(password),
+                    Email = email ?? "",                      Password = EncryptString(password),
                     DisplayName = display
                 });
 
@@ -227,7 +325,7 @@ class Program
                 return;
             }
 
-            Console.WriteLine("Restarting setup...");
+            ConsoleMG.WriteLine("Restarting setup...");
         }
     }
 
@@ -239,31 +337,30 @@ class Program
         var profile = LoadProfile();
         if (profile != null)
         {
-            Console.WriteLine($"Advanced Mode - User: {profile.DisplayName}");
+            ConsoleMG.WriteLine($"Advanced Mode - User: {profile.DisplayName}");
         }
         else
         {
-            Console.WriteLine("Advanced Mode - User: Normal");
+            ConsoleMG.WriteLine("Advanced Mode - User: Normal");
         }
 
-        Console.WriteLine("Type 'exit' to return to normal mode.");
-        Console.WriteLine();
+        ConsoleMG.WriteLine("Type 'exit' to return to normal mode.");
+        ConsoleMG.WriteLine();
 
         while (true)
         {
-            Console.Write(GetAdvancedPrompt());
+            ConsoleMG.Write(GetAdvancedPrompt());
 
 
             string cmd = Console.ReadLine()?.Trim().ToLower();
 
             if (string.IsNullOrEmpty(cmd) || cmd == "exit")
             {
-                // DÙNG HÀM CÓ SẴN RestartApp()!
-                RestartApp();
+                                RestartApp();
                 return;
             }
 
-            Console.WriteLine("Unknown command.");
+            ConsoleMG.WriteLine("Unknown command.");
         }
     }
 
@@ -273,22 +370,28 @@ class Program
             .GetCurrentProcess()
             .MainModule.FileName;
 
-        // Clear console trước
-        Console.Clear();
+        // Tạo process mới TRƯỚC
+        var newProcess = new System.Diagnostics.Process
+        {
+            StartInfo = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = exe,
+                UseShellExecute = true
+            }
+        };
 
         // Start process mới
-        System.Diagnostics.Process.Start(exe);
+        newProcess.Start();
 
-        // Delay một chút để process mới kịp start
-        System.Threading.Thread.Sleep(100);
+        // Đợi một chút để process mới khởi động
+        System.Threading.Thread.Sleep(500);
 
-        // Exit process cũ
+        // Rồi mới thoát process hiện tại
         Environment.Exit(0);
     }
-    //END PROFILE SYSTEM
     static void ShowBanner()
     {
-        Console.WriteLine(@"
+        ConsoleMG.WriteLine($@"
  ██████╗ ██████╗ ███╗   ██╗██╗   ██╗███████╗██████╗ ████████╗
 ██╔════╝██╔═══██╗████╗  ██║██║   ██║██╔════╝██╔══██╗╚══██╔══╝
 ██║     ██║   ██║██╔██╗ ██║██║   ██║█████╗  ██████╔╝   ██║   
@@ -298,71 +401,79 @@ class Program
 
                  CONVERT TOOL
 ------------------------------------------------------------
-Powered by hycoredragon 
+{AppInfo.copyright_info}
+
 ");
     }
 
     static void ShowHelpMenu()
     {
-        Console.WriteLine();
-        Console.WriteLine("════════════════════════════════════════════════════");
-        Console.WriteLine("                    COMMAND LIST");
-        Console.WriteLine("════════════════════════════════════════════════════");
-        Console.WriteLine();
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine("════════════════════════════════════════════════════");
+        ConsoleMG.WriteLine("                    COMMAND LIST");
+        ConsoleMG.WriteLine("════════════════════════════════════════════════════");
+        ConsoleMG.WriteLine();
 
         WriteCmd("setupprofile", "Create profile (first time setup)");
         WriteCmd("setupprofile -r", "Reset and delete current profile");
-        Console.WriteLine();
+        WriteCmd("setupprofile -rollback", "Restore deleted profile from backup");
+        WriteCmd("setupprofile -view", "View current profile information");
+        WriteCmd("setupprofile -change password", "Change profile password");
+        ConsoleMG.WriteLine();
         WriteCmd("clearopen", "Remove Open With integration");
         WriteCmd("help", "Show this help menu");
         WriteCmd("info", "Show tool information");
         WriteCmd("apppath/path/where", "Show application paths and file info");
         WriteCmd("change prompt/prompt", "Change CLI prompt style");
         WriteCmd("(ENTER)", "Continue to main tool");
-
-        Console.WriteLine();
+        ConsoleMG.WriteLine();
+        WriteCmd("adv", "Enter advanced CLI mode");
+        WriteCmd("info-adv", "Show advanced detailed command info");
+        WriteCmd("adv-convert", "Advanced image format conversion PNG/JPG -> JPG/PNG");
+        ConsoleMG.WriteLine();
     }
 
     static void WriteCmd(string cmd, string desc)
     {
-        Console.Write(" ");
-        Console.Write(cmd.PadRight(18));
-        Console.Write(" - ");
-        Console.WriteLine(desc);
+        ConsoleMG.Write(" ");
+        ConsoleMG.Write(cmd.PadRight(18));
+        ConsoleMG.Write(" - ");
+        ConsoleMG.WriteLine(desc);
     }
 
 
     static void ShowInfo()
     {
-        Console.WriteLine();
-        Console.WriteLine("==================================================");
-        Console.WriteLine("                 CONVERT TOOL INFO                ");
-        Console.WriteLine("==================================================");
-        Console.WriteLine();
-        Console.WriteLine(" Developer        : hycoredragon");
-        Console.WriteLine(" Support Server   : === hycord server ===");
-        Console.WriteLine(" Server URL       : https://discord.gg/DuH6c7hhsK");
-        Console.WriteLine();
-        Console.WriteLine(" Tool Type        : PNG/JPG -> ICO Converter");
-        Console.WriteLine(" Runtime          : .NET 8 Self-Contained");
-        Console.WriteLine();
-        Console.WriteLine("==================================================");
-        Console.WriteLine();
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine("==================================================");
+        ConsoleMG.WriteLine("                 CONVERT TOOL INFO                ");
+        ConsoleMG.WriteLine("==================================================");
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine(" Developer        : hycoredragon");
+        ConsoleMG.WriteLine(" Support Server   : === hycord server ===");
+        ConsoleMG.WriteLine(" Server URL       : https://discord.gg/DuH6c7hhsK");
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine(" Tool Type        : PNG/JPG -> ICO Converter");
+        ConsoleMG.WriteLine(" Runtime          : .NET 8 Self-Contained");
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine("==================================================");
+        ConsoleMG.WriteLine();
     }
 
-    static void ToolCLI()
+    static void ToolCLI(string[] args = null)
     {
         ShowBanner();
+
 
         var profile = LoadProfile();
 
         if (profile != null)
         {
-            Console.WriteLine($"Welcome back! User: {profile.DisplayName}");
+            ConsoleMG.WriteLine($"Welcome back! User: {profile.DisplayName}");
 
             while (true)
             {
-                Console.Write("Enter password: ");
+                ConsoleMG.Write("Enter password: ");
                 string pass = ReadPassword();
 
                 string realPass = DecryptString(profile.Password);
@@ -370,26 +481,25 @@ Powered by hycoredragon
                 if (pass == realPass)
                     break;
 
-                Console.WriteLine("Wrong password.");
+                ConsoleMG.WriteLine("Wrong password.");
             }
         }
         else
         {
-            Console.WriteLine("Welcome back! User: Normal");
+            ConsoleMG.WriteLine("Welcome back! User: Normal");
         }
 
         ShowHelpMenu();
 
         while (true)
         {
-            Console.Write(GetPrompt());
+            ConsoleMG.Write(GetPrompt());
 
             string cmd = Console.ReadLine()?.Trim().ToLower();
 
             if (string.IsNullOrEmpty(cmd))
             {
-                // ENTER → exit CLI → vào Main
-                break;
+                                break;
             }
 
             switch (cmd)
@@ -397,7 +507,7 @@ Powered by hycoredragon
                 case "clearopen":
                     ClearOpenWith();
                     DeleteFirstRunFlag();
-                    Console.WriteLine("Open With removed.");
+                    ConsoleMG.WriteLine("Open With removed.");
                     break;
                 case "help":
                     ShowHelpMenu();
@@ -414,20 +524,32 @@ Powered by hycoredragon
 
                     if (ProfileExists())
                     {
-                        Console.WriteLine("Profile already exists.");
-                        Console.WriteLine("Use 'setupprofile -r' to reset profile.");
+                        ConsoleMG.WriteLine("Profile already exists.");
+                        ConsoleMG.WriteLine("Use 'setupprofile -r' to reset profile.");
                         break;
                     }
 
                     SetupProfile();
                     break;
 
+                    case "setupprofile -rollback":
+                        RollbackProfile();
+                        break;
+                    case "setupprofile -view":
+                        ViewCurrentProfile();
+                        break;
+                    case "setupprofile -change password":
+                        ChangePassword();
+                        break;
                 case "setupprofile -r":
 
                     ResetProfileFlow();
                     break;
                 case "adv":
                     AdvancedCLIMode();
+                    break;
+                case "info-adv":
+                    ShowCommandInfoWithCLI();
                     break;
 
                 case "apppath":
@@ -441,9 +563,19 @@ Powered by hycoredragon
                     ChangePromptMenu();
                     continue;
 
+                case "adv-convert":
+                    ProcessImageConversion(args);
+
+                    break;
+                case "testdll":
+                    ConsoleMG.DebugTest();
+                    break;
+
+
+
 
                 default:
-                    Console.WriteLine("Unknown command.");
+                    ConsoleMG.WriteLine("Unknown command.");
                     break;
             }
         }
@@ -451,23 +583,124 @@ Powered by hycoredragon
 
     }
 
+    static void ChangePassword()
+    {
+        if (!ProfileExists())
+        {
+            ConsoleMG.WriteLine("ERROR: No profile found.");
+            ConsoleMG.WriteLine("       Use 'setupprofile' to create one first.");
+            return;
+        }
+
+        var profile = LoadProfile();
+        if (profile == null)
+        {
+            ConsoleMG.WriteLine("ERROR: Cannot load profile.");
+            return;
+        }
+
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine("===========================================");
+        ConsoleMG.WriteLine("           CHANGE PASSWORD");
+        ConsoleMG.WriteLine("===========================================");
+        ConsoleMG.WriteLine();
+
+        // Current password
+        ConsoleMG.Write("Enter current password: ");
+        string currentPassword = ReadPassword();
+
+        string realPassword = DecryptString(profile.Password);
+
+        if (currentPassword != realPassword)
+        {
+            ConsoleMG.WriteLine("ERROR: Wrong password. Aborted.");
+            return;
+        }
+
+        // New password
+        string newPassword, confirmPassword;
+
+        while (true)
+        {
+            ConsoleMG.WriteLine();
+            ConsoleMG.WriteLine("Enter NEW password:");
+
+            ConsoleMG.Write("New password: ");
+            newPassword = ReadPassword();
+
+            if (string.IsNullOrEmpty(newPassword))
+            {
+                ConsoleMG.WriteLine("ERROR: Password cannot be empty.");
+                continue;
+            }
+
+            if (newPassword.Length < 6)
+            {
+                ConsoleMG.WriteLine("WARNING: Password should be at least 6 characters.");
+                ConsoleMG.Write("Continue anyway? (Y/N): ");
+                string continueChoice = Console.ReadLine().Trim().ToUpper();
+                ConsoleMG.WriteLine();
+
+                if (continueChoice != "Y")
+                    continue;
+            }
+
+            ConsoleMG.Write("Confirm new password: ");
+            confirmPassword = ReadPassword();
+
+            if (newPassword != confirmPassword)
+            {
+                ConsoleMG.WriteLine("ERROR: Passwords do not match.");
+                continue;
+            }
+
+            if (newPassword == realPassword)
+            {
+                ConsoleMG.WriteLine("ERROR: New password is identical to current password.");
+                ConsoleMG.WriteLine("       If you want to keep current password, just cancel.");
+                continue;
+            }
+
+            break;
+        }
+
+        // Final confirmation
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine("WARNING: You are about to change your password.");
+        ConsoleMG.Write("Type 'CHANGE' to confirm: ");
+
+        string confirm = Console.ReadLine().Trim().ToUpper();
+        if (confirm != "CHANGE")
+        {
+            ConsoleMG.WriteLine("CANCELLED: Password not changed.");
+            return;
+        }
+
+        // Update
+        profile.Password = EncryptString(newPassword);
+        SaveProfile(profile);
+
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine("SUCCESS: Password changed!");
+        ConsoleMG.WriteLine("Restarting application...");
+
+        RestartApp();
+    }
+
     static string GetLinuxStylePrompt(string mode = "")
     {
         string username = Environment.UserName;
         string hostname = Environment.MachineName;
 
-        // Lấy current directory, thay thế \ bằng / cho giống Unix
-        string currentDir = Environment.CurrentDirectory.Replace('\\', '/');
+                string currentDir = Environment.CurrentDirectory.Replace('\\', '/');
 
-        // Rút gọn home directory thành ~
-        string homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).Replace('\\', '/');
+                string homePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile).Replace('\\', '/');
         if (currentDir.StartsWith(homePath))
         {
             currentDir = "~" + currentDir.Substring(homePath.Length);
         }
 
-        // Thêm mode nếu có
-        string fullMode = string.IsNullOrEmpty(mode) ? "ToolCLI" : $"ToolCLI/{mode}";
+                string fullMode = string.IsNullOrEmpty(mode) ? "ToolCLI" : $"ToolCLI/{mode}";
 
         return $"{username}@{hostname}:{currentDir}/{fullMode}$ ";
     }
@@ -495,25 +728,24 @@ Powered by hycoredragon
     {
         string promptFile = Path.Combine(GetProfileFolder(), "setting_prompt.json");
 
-        // Load prompt setting hiện tại
-        string currentPrompt = LoadCurrentPrompt();
+                string currentPrompt = LoadCurrentPrompt();
 
-        Console.WriteLine();
-        Console.WriteLine("════════════════════════════════════════════════════");
-        Console.WriteLine("               PROMPT SELECTION MENU");
-        Console.WriteLine("════════════════════════════════════════════════════");
-        Console.WriteLine();
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine("════════════════════════════════════════════════════");
+        ConsoleMG.WriteLine("               PROMPT SELECTION MENU");
+        ConsoleMG.WriteLine("════════════════════════════════════════════════════");
+        ConsoleMG.WriteLine();
 
-        Console.WriteLine($"Current prompt: {currentPrompt}");
-        Console.WriteLine();
+        ConsoleMG.WriteLine($"Current prompt: {currentPrompt}");
+        ConsoleMG.WriteLine();
 
-        Console.WriteLine("1. Default (J:>ToolCLI>)");
-        Console.WriteLine("2. Linux Style (user@host:~/ToolCLI$)");
-        Console.WriteLine("3. Simple (ToolCLI>)");
-        Console.WriteLine("4. Classic (C:\\> convertTool)");
-        Console.WriteLine();
+        ConsoleMG.WriteLine("1. Default (J:>ToolCLI>)");
+        ConsoleMG.WriteLine("2. Linux Style (user@host:~/ToolCLI$)");
+        ConsoleMG.WriteLine("3. Simple (ToolCLI>)");
+        ConsoleMG.WriteLine("4. Classic (C:\\> convertTool)");
+        ConsoleMG.WriteLine();
 
-        Console.Write("Choose (1-4): ");
+        ConsoleMG.Write("Choose (1-4): ");
         string choice = Console.ReadLine();
 
         string newPrompt = "";
@@ -533,19 +765,17 @@ Powered by hycoredragon
                 newPrompt = "classic";
                 break;
             default:
-                Console.WriteLine("Invalid choice.");
+                ConsoleMG.WriteLine("Invalid choice.");
                 return;
         }
 
-        // Save to profile
-        SavePromptSetting(newPrompt);
+                SavePromptSetting(newPrompt);
 
-        Console.WriteLine();
-        Console.WriteLine($"Prompt changed to: {newPrompt}");
-        Console.WriteLine("Restarting app to apply changes...");
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine($"Prompt changed to: {newPrompt}");
+        ConsoleMG.WriteLine("Restarting app to apply changes...");
 
-        // Restart để apply prompt mới
-        RestartApp();
+                RestartApp();
     }
 
     static string LoadCurrentPrompt()
@@ -553,8 +783,7 @@ Powered by hycoredragon
         string promptFile = Path.Combine(GetProfileFolder(), "setting_prompt.json");
 
         if (!File.Exists(promptFile))
-            return "default"; // default prompt
-
+            return "default"; 
         try
         {
             string json = File.ReadAllText(promptFile);
@@ -577,8 +806,7 @@ Powered by hycoredragon
         }
         catch
         {
-            // silent fail
-        }
+                    }
     }
 
     static string GetPrompt()
@@ -595,8 +823,7 @@ Powered by hycoredragon
                 return $"{Environment.CurrentDirectory}> convertTool> ";
             case "default":
             default:
-                // default: J:>ToolCLI>
-                string drive = Path.GetPathRoot(Environment.CurrentDirectory).TrimEnd('\\');
+                                string drive = Path.GetPathRoot(Environment.CurrentDirectory).TrimEnd('\\');
                 return $"{drive}>ToolCLI> ";
         }
     }
@@ -609,45 +836,43 @@ Powered by hycoredragon
         string historyFolder = GetHistoryFolder();
         string profileFolder = GetProfileFolder();
 
-        Console.WriteLine();
-        Console.WriteLine("════════════════════════════════════════════════════");
-        Console.WriteLine("                    CURRENT PATHS");
-        Console.WriteLine("════════════════════════════════════════════════════");
-        Console.WriteLine();
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine("════════════════════════════════════════════════════");
+        ConsoleMG.WriteLine("                    CURRENT PATHS");
+        ConsoleMG.WriteLine("════════════════════════════════════════════════════");
+        ConsoleMG.WriteLine();
 
-        Console.WriteLine($" Main App:       {mainExe}");
-        Console.WriteLine($" Shell Helper:   {(File.Exists(shellExe) ? shellExe : "Not extracted")}");
-        Console.WriteLine($" History Folder: {historyFolder}");
-        Console.WriteLine($" Profile Folder: {profileFolder}");
-        Console.WriteLine($" Working Dir:    {Environment.CurrentDirectory}");
-        Console.WriteLine();
+        ConsoleMG.WriteLine($" Main App:       {mainExe}");
+        ConsoleMG.WriteLine($" Shell Helper:   {(File.Exists(shellExe) ? shellExe : "Not extracted")}");
+        ConsoleMG.WriteLine($" History Folder: {historyFolder}");
+        ConsoleMG.WriteLine($" Profile Folder: {profileFolder}");
+        ConsoleMG.WriteLine($" Working Dir:    {Environment.CurrentDirectory}");
+        ConsoleMG.WriteLine();
 
-        // Bonus: show file info
-        Console.WriteLine("════════════════════════════════════════════════════");
-        Console.WriteLine("                     FILE INFO");
-        Console.WriteLine("════════════════════════════════════════════════════");
-        Console.WriteLine();
+                ConsoleMG.WriteLine("════════════════════════════════════════════════════");
+        ConsoleMG.WriteLine("                     FILE INFO");
+        ConsoleMG.WriteLine("════════════════════════════════════════════════════");
+        ConsoleMG.WriteLine();
 
         if (File.Exists(mainExe))
         {
             var mainInfo = new FileInfo(mainExe);
-            Console.WriteLine($"convertTool.exe:     {mainInfo.Length / 1024} KB, {mainInfo.LastWriteTime}");
+            ConsoleMG.WriteLine($"convertTool.exe:     {mainInfo.Length / 1024} KB, {mainInfo.LastWriteTime}");
         }
 
         if (File.Exists(shellExe))
         {
             var shellInfo = new FileInfo(shellExe);
-            Console.WriteLine($"convertTool_shell.exe: {shellInfo.Length / 1024} KB, {shellInfo.LastWriteTime}");
+            ConsoleMG.WriteLine($"convertTool_shell.exe: {shellInfo.Length / 1024} KB, {shellInfo.LastWriteTime}");
         }
 
-        // Count files in history
-        if (Directory.Exists(historyFolder))
+                if (Directory.Exists(historyFolder))
         {
             int historyCount = Directory.GetFiles(historyFolder).Length;
-            Console.WriteLine($"History files: {historyCount} files");
+            ConsoleMG.WriteLine($"History files: {historyCount} files");
         }
 
-        Console.WriteLine();
+        ConsoleMG.WriteLine();
     }
 
     static void DeleteProfile()
@@ -666,47 +891,243 @@ Powered by hycoredragon
     {
         if (!ProfileExists())
         {
-            Console.WriteLine("No profile found.");
+            ConsoleMG.WriteLine("No profile found.");
             return;
         }
 
-        // Load profile hiện tại
         var profile = LoadProfile();
         if (profile == null)
         {
-            Console.WriteLine("Cannot load profile.");
+            ConsoleMG.WriteLine("Cannot load profile.");
             return;
         }
 
-        Console.WriteLine("WARNING: This will delete current profile.");
+        ConsoleMG.WriteLine("WARNING: This will delete current profile.");
 
-        // Yêu cầu nhập password để xác nhận
-        Console.Write("Enter current password to confirm deletion: ");
+        ConsoleMG.Write("Enter current password to confirm deletion: ");
         string enteredPassword = ReadPassword();
 
         string realPassword = DecryptString(profile.Password);
 
         if (enteredPassword != realPassword)
         {
-            Console.WriteLine("Wrong password. Deletion cancelled.");
+            ConsoleMG.WriteLine("Wrong password. Deletion cancelled.");
             return;
         }
 
-        Console.Write("Are you absolutely sure? (Type 'DELETE' to confirm): ");
+        ConsoleMG.Write("Are you absolutely sure? (Type 'DELETE' to confirm): ");
         string confirm = Console.ReadLine().Trim().ToUpper();
 
         if (confirm != "DELETE")
         {
-            Console.WriteLine("Cancelled.");
+            ConsoleMG.WriteLine("Cancelled.");
             return;
         }
 
-        DeleteProfile();
-        Console.WriteLine("Profile deleted successfully.");
+        // ===== BACKUP PROFILE TRƯỚC KHI XÓA =====
+        string backupPath = BackupProfile(profile);
 
-        // Optional: restart app
+        // Xóa profile chính
+        DeleteProfile();
+        ConsoleMG.WriteLine("Profile deleted successfully.");
+
+        // Thông báo backup nếu thành công
+        if (!string.IsNullOrEmpty(backupPath))
+        {
+            ConsoleMG.WriteLine("Use 'setupprofile -rollback' to restore");
+        }
+
         RestartApp();
     }
+
+    static string BackupProfile(UserProfile profile)
+    {
+        try
+        {
+            // Tạo folder Temp/ProfileTemp/
+            string profileTempFolder = Path.Combine(AppTemp.TempFolder, "ProfileTemp");
+            if (!Directory.Exists(profileTempFolder))
+            {
+                Directory.CreateDirectory(profileTempFolder);
+            }
+
+            // Tên file với timestamp
+            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            string backupFile = Path.Combine(profileTempFolder, $"profile.{timestamp}.json");
+
+            // Serialize profile (giữ nguyên encryption password)
+            string json = System.Text.Json.JsonSerializer.Serialize(
+                profile,
+                new System.Text.Json.JsonSerializerOptions { WriteIndented = true }
+            );
+
+            File.WriteAllText(backupFile, json);
+
+            // Cleanup backups cũ (giữ 5 backup mới nhất)
+            CleanupOldBackups(profileTempFolder);
+
+            return backupFile;
+        }
+        catch
+        {
+            return null; // Backup fail nhưng vẫn xóa profile
+        }
+    }
+
+    static void RollbackProfile()
+    {
+        if (ProfileExists())
+        {
+            ConsoleMG.WriteLine();
+            ConsoleMG.WriteLine(" RESTORE BLOCKED!");
+            ConsoleMG.WriteLine();
+            ConsoleMG.WriteLine("You currently have an active profile.");
+            ConsoleMG.WriteLine("Restoring an old profile would overwrite it.");
+            ConsoleMG.WriteLine();
+            ConsoleMG.WriteLine("To restore an old profile:");
+            ConsoleMG.WriteLine("1. Delete current profile: 'setupprofile -r'");
+            ConsoleMG.WriteLine("2. Then use 'setupprofile -rollback'");
+            ConsoleMG.WriteLine();
+            ConsoleMG.WriteLine("This prevents accidental data loss.");
+            return;
+        }
+
+        // Check folder backup
+        string profileTempFolder = Path.Combine(AppTemp.TempFolder, "ProfileTemp");
+
+        if (!Directory.Exists(profileTempFolder))
+        {
+            ConsoleMG.WriteLine(" No backup folder found.");
+            return;
+        }
+
+        // Get all backup files
+        var backupFiles = Directory.GetFiles(profileTempFolder, "profile.*.json")
+                                   .OrderByDescending(f => f)
+                                   .ToArray();
+
+        if (backupFiles.Length == 0)
+        {
+            ConsoleMG.WriteLine(" No backup files available.");
+            return;
+        }
+
+        // Show backup list
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine("═══════════════════════════════════════════");
+        ConsoleMG.WriteLine("           AVAILABLE BACKUPS");
+        ConsoleMG.WriteLine("═══════════════════════════════════════════");
+        ConsoleMG.WriteLine();
+
+        for (int i = 0; i < backupFiles.Length; i++)
+        {
+            try
+            {
+                string json = File.ReadAllText(backupFiles[i]);
+                var profile = System.Text.Json.JsonSerializer.Deserialize<UserProfile>(json);
+
+                if (profile != null)
+                {
+                    string fileName = Path.GetFileName(backupFiles[i]);
+                    string dateStr = fileName.Replace("profile.", "").Replace(".json", "");
+
+                    ConsoleMG.WriteLine($"[{i + 1}] {profile.DisplayName}");
+                    ConsoleMG.WriteLine($"     Username: {profile.Username}");
+                    ConsoleMG.WriteLine($"     Email: {(string.IsNullOrEmpty(profile.Email) ? "(empty)" : profile.Email)}");
+                    ConsoleMG.WriteLine($"     Date: {dateStr.Insert(4, "-").Insert(7, "-").Replace("_", " ")}");
+                    ConsoleMG.WriteLine();
+                }
+            }
+            catch { /* Skip corrupted backups */ }
+        }
+
+        // Select backup
+        ConsoleMG.Write($"Select backup to restore (1-{backupFiles.Length}, or 0 to cancel): ");
+
+        if (!int.TryParse(Console.ReadLine(), out int choice) || choice == 0)
+        {
+            ConsoleMG.WriteLine(" Cancelled.");
+            return;
+        }
+
+        if (choice < 1 || choice > backupFiles.Length)
+        {
+            ConsoleMG.WriteLine(" Invalid selection.");
+            return;
+        }
+
+        string selectedBackup = backupFiles[choice - 1];
+
+        try
+        {
+            // Load backup
+            string json = File.ReadAllText(selectedBackup);
+            var profile = System.Text.Json.JsonSerializer.Deserialize<UserProfile>(json);
+
+            if (profile == null)
+            {
+                ConsoleMG.WriteLine(" Backup file is corrupted.");
+                return;
+            }
+
+            // Final confirmation
+            ConsoleMG.WriteLine();
+            ConsoleMG.WriteLine($"  YOU ARE ABOUT TO RESTORE:");
+            ConsoleMG.WriteLine($"   • Display Name: {profile.DisplayName}");
+            ConsoleMG.WriteLine($"   • Username: {profile.Username}");
+            ConsoleMG.WriteLine();
+            ConsoleMG.WriteLine("  This will OVERWRITE current profile if exists!");
+            ConsoleMG.Write("Type 'RESTORE' to confirm: ");
+
+            string confirm = Console.ReadLine().Trim().ToUpper();
+
+            if (confirm != "RESTORE")
+            {
+                ConsoleMG.WriteLine("❌ Cancelled.");
+                return;
+            }
+
+            // Save restored profile
+            SaveProfile(profile);
+            ConsoleMG.WriteLine(" Profile restored successfully!");
+
+            // Delete the restored backup (optional)
+            try
+            {
+                File.Delete(selectedBackup);
+                ConsoleMG.WriteLine(" Backup file removed.");
+            }
+            catch { /* Ignore delete errors */ }
+
+            // Restart app
+            ConsoleMG.WriteLine("🔄 Restarting application...");
+            RestartApp();
+        }
+        catch (Exception ex)
+        {
+            ConsoleMG.WriteLine($"❌ Restore failed: {ex.Message}");
+        }
+    }
+
+    static void CleanupOldBackups(string backupFolder, int keepCount = 5)
+    {
+        try
+        {
+            var backupFiles = Directory.GetFiles(backupFolder, "profile.*.json")
+                                       .OrderByDescending(f => f)
+                                       .ToList();
+
+            if (backupFiles.Count > keepCount)
+            {
+                for (int i = keepCount; i < backupFiles.Count; i++)
+                {
+                    File.Delete(backupFiles[i]);
+                }
+            }
+        }
+        catch { /* Ignore cleanup errors */ }
+    }
+
 
     static bool ProfileExists()
     {
@@ -721,27 +1142,24 @@ Powered by hycoredragon
         {
             var key = Console.ReadKey(true);
 
-            // ENTER → kết thúc nhập
-            if (key.Key == ConsoleKey.Enter)
+                        if (key.Key == ConsoleKey.Enter)
             {
-                Console.WriteLine();
+                ConsoleMG.WriteLine();
                 break;
             }
 
-            // BACKSPACE → xoá ký tự
-            if (key.Key == ConsoleKey.Backspace)
+                        if (key.Key == ConsoleKey.Backspace)
             {
                 if (password.Length > 0)
                 {
                     password.Remove(password.Length - 1, 1);
-                    Console.Write("\b \b");
+                    ConsoleMG.Write("\b \b");
                 }
                 continue;
             }
 
-            // Thêm ký tự → in *
-            password.Append(key.KeyChar);
-            Console.Write("*");
+                        password.Append(key.KeyChar);
+            ConsoleMG.Write("*");
         }
 
         return password.ToString();
@@ -752,24 +1170,24 @@ Powered by hycoredragon
     {
         const string pass = "hycoredragondebug";
 
-        Console.Write("Enter password: ");
+        ConsoleMG.Write("Enter password: ");
         string p1 = ReadPassword();
 
-        Console.Write("Re-enter password: ");
+        ConsoleMG.Write("Re-enter password: ");
         string p2 = ReadPassword();
 
         if (p1 != pass || p2 != pass)
         {
-            Console.WriteLine("Access denied.");
+            ConsoleMG.WriteLine("Access denied.");
             return;
         }
 
-        Console.WriteLine("Access granted.");
+        ConsoleMG.WriteLine("Access granted.");
 
         DumpEmbeddedDll("converttool.dll", "convertTool.dll");
         DumpEmbeddedDll("converttool_shell.dll", "convertTool_shell.dll");
 
-        Console.WriteLine("Dump done.");
+        ConsoleMG.WriteLine("Dump done.");
     }
 
     static void DumpEmbeddedDll(string keyword, string outputFile)
@@ -788,16 +1206,16 @@ Powered by hycoredragon
 
                     rs.CopyTo(fs);
 
-                    Console.WriteLine($"{outputFile} dumped.");
+                    ConsoleMG.WriteLine($"{outputFile} dumped.");
                     return;
                 }
             }
 
-            Console.WriteLine($"{outputFile} resource not found.");
+            ConsoleMG.WriteLine($"{outputFile} resource not found.");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Dump failed: {ex.Message}");
+            ConsoleMG.WriteLine($"Dump failed: {ex.Message}");
         }
     }
 
@@ -885,11 +1303,11 @@ Powered by hycoredragon
                 }
             }
 
-            Console.WriteLine("Added to Open With list.");
+            ConsoleMG.WriteLine("Added to Open With list.");
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Failed to add Open With: " + ex.Message);
+            ConsoleMG.WriteLine("Failed to add Open With: " + ex.Message);
         }
     }
 
@@ -920,8 +1338,7 @@ Powered by hycoredragon
                 }
                 catch
                 {
-                    // Nếu file đang bị lock bởi ai đó → skip
-                }
+                                    }
             }
         }
         catch { }
@@ -952,10 +1369,100 @@ Powered by hycoredragon
         }
         catch
         {
-            // silent fail OK
         }
     }
 
+    static bool ExtractConsoleMGDll()
+    {
+        try
+        {
+            string installerTempFolder = Path.Combine(AppTemp.TempFolder, "installerTemp");
+
+            if (!Directory.Exists(installerTempFolder))
+            {
+                Directory.CreateDirectory(installerTempFolder);
+            }
+
+            string flagFile = Path.Combine(installerTempFolder, "extracted.flag");
+
+            if (File.Exists(flagFile))
+            {
+                return true;
+            }
+
+            string exeFolder = GetExeFolder();
+            string outputPath = Path.Combine(exeFolder, "ConsoleMG.dll");
+
+            var asm = typeof(Program).Assembly;
+            using (Stream res = asm.GetManifestResourceStream("convertTool.ConsoleMG.dll"))
+            {
+                if (res == null)
+                {
+                    Console.WriteLine("❌ ERROR: ConsoleMG.dll not found in embedded resources!");
+                    return false;
+                }
+
+                using (FileStream fs = new FileStream(outputPath, FileMode.Create))
+                {
+                    res.CopyTo(fs);
+                }
+            }
+
+            File.WriteAllText(flagFile, $"Extracted at: {DateTime.Now}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ ERROR extracting ConsoleMG.dll: {ex.Message}");
+            return false;
+        }
+    }
+
+    static bool ExtractUpdate()
+    {
+        try
+        {
+            string installerTempFolder = Path.Combine(AppTemp.TempFolder, "installerTemp");
+
+            if (!Directory.Exists(installerTempFolder))
+            {
+                Directory.CreateDirectory(installerTempFolder);
+            }
+
+            string flagFile = Path.Combine(installerTempFolder, "extracted_updater.flag");
+
+            if (File.Exists(flagFile))
+            {
+                return true;
+            }
+
+            string exeFolder = GetExeFolder();
+            string outputPath = Path.Combine(exeFolder, "convertTool_updater.exe");
+
+            var asm = typeof(Program).Assembly;
+            using (Stream res = asm.GetManifestResourceStream("convertTool.convertTool_updater.exe"))
+            {
+                if (res == null)
+                {
+                    Console.WriteLine("❌ ERROR: convertTool_updater.exe not found in embedded resources!");
+                    return false;
+                }
+
+                using (FileStream fs = new FileStream(outputPath, FileMode.Create))
+                {
+                    res.CopyTo(fs);
+                }
+            }
+
+            File.WriteAllText(flagFile, $"Extracted at: {DateTime.Now}");
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"❌ ERROR extracting convertTool_updater.exe: {ex.Message}");
+            return false;
+        }
+    }
     static void ProcessConversion(string[] args)
     {
         try
@@ -963,7 +1470,7 @@ Powered by hycoredragon
             string inputPath = null;
             if (args.Length == 0)
             {
-                Console.WriteLine("No file selected.");
+                ConsoleMG.WriteLine("No file selected.");
 
                 string historyChoice = ShowHistoryMenu();
 
@@ -982,31 +1489,30 @@ Powered by hycoredragon
 
             if (!File.Exists(inputPath))
             {
-                Console.WriteLine("File not found.");
+                ConsoleMG.WriteLine("File not found.");
                 Pause();
                 return;
             }
 
-            Console.WriteLine("=== ICON CONVERT TOOL ===");
-            Console.WriteLine();
-            Console.WriteLine("File: " + Path.GetFileName(inputPath));
-            Console.WriteLine();
+            ConsoleMG.WriteLine("=== ICON CONVERT TOOL ===");
+            ConsoleMG.WriteLine();
+            ConsoleMG.WriteLine("File: " + Path.GetFileName(inputPath));
+            ConsoleMG.WriteLine();
 
-            // ===== SIZE MENU =====
-            Console.WriteLine("Select mode:");
-            Console.WriteLine("1 - Single size");
-            Console.WriteLine("2 - Multi size (16,32,48,64,128,256)");
-            Console.WriteLine("3 - Custom size");
-            Console.WriteLine();
+                        ConsoleMG.WriteLine("Select mode:");
+            ConsoleMG.WriteLine("1 - Single size");
+            ConsoleMG.WriteLine("2 - Multi size (16,32,48,64,128,256)");
+            ConsoleMG.WriteLine("3 - Custom size");
+            ConsoleMG.WriteLine();
 
-            Console.Write("Choose: ");
+            ConsoleMG.Write("Choose: ");
             string choice = Console.ReadLine();
 
             List<int> sizes = new List<int>();
 
             if (choice == "1")
             {
-                Console.Write("Enter size: ");
+                ConsoleMG.Write("Enter size: ");
                 sizes.Add(int.Parse(Console.ReadLine()));
             }
             else if (choice == "2")
@@ -1015,40 +1521,39 @@ Powered by hycoredragon
             }
             else if (choice == "3")
             {
-                Console.Write("Enter sizes (32,64,128): ");
+                ConsoleMG.Write("Enter sizes (32,64,128): ");
                 string[] input = Console.ReadLine().Split(',');
                 foreach (var s in input)
                     sizes.Add(int.Parse(s.Trim()));
             }
             else
             {
-                Console.WriteLine("Invalid choice.");
+                ConsoleMG.WriteLine("Invalid choice.");
                 Pause();
                 return;
             }
 
-            // ===== COUNT MENU =====
-            int count = 1;
+                        int count = 1;
 
             while (true)
             {
-                Console.WriteLine();
-                Console.Write("How many ICO files to create (1-10): ");
+                ConsoleMG.WriteLine();
+                ConsoleMG.Write("How many ICO files to create (1-20): ");
 
                 if (!int.TryParse(Console.ReadLine(), out count))
                     count = 1;
 
                 if (count < 1) count = 1;
-                if (count > 10) count = 10;
+                if (count > 20) count = 20;
 
-                Console.WriteLine();
-                Console.Write("Are you sure? (Y/N): ");
+                ConsoleMG.WriteLine();
+                ConsoleMG.Write("Are you sure? (Y/N): ");
                 string confirm = Console.ReadLine().Trim().ToUpper();
 
                 if (confirm == "Y")
                     break;
 
-                Console.WriteLine("Re-selecting count...");
+                ConsoleMG.WriteLine("Re-selecting count...");
             }
 
             string historyFolder = GetHistoryFolder();
@@ -1058,21 +1563,19 @@ Powered by hycoredragon
 
             if (inputPath.StartsWith(historyFolder, StringComparison.OrdinalIgnoreCase))
             {
-                // Nếu file nằm trong history → xuất ico ra ngoài exe
-                folder = exeFolder;
+                                folder = exeFolder;
             }
             else
             {
-                // Nếu file gốc → xuất ico cùng folder gốc
-                folder = Path.GetDirectoryName(inputPath);
+                                folder = Path.GetDirectoryName(inputPath);
             }
             string name = Path.GetFileNameWithoutExtension(inputPath);
 
             using (Bitmap original = new Bitmap(inputPath))
             {
-                Console.WriteLine();
-                Console.WriteLine("Creating icons...");
-                Console.WriteLine();
+                ConsoleMG.WriteLine();
+                ConsoleMG.WriteLine("Creating icons...");
+                ConsoleMG.WriteLine();
 
                 DrawProgressBar(0, count);
 
@@ -1089,23 +1592,200 @@ Powered by hycoredragon
                     DrawProgressBar(i, count);
                 }
 
-                Console.WriteLine();
-                Console.WriteLine("DONE ");
+                ConsoleMG.WriteLine();
+                ConsoleMG.WriteLine("DONE ");
                 SaveToHistory(inputPath);
             }
 
-            Console.WriteLine();
-            Console.WriteLine("DONE  Created " + count + " icon file(s).");
+            ConsoleMG.WriteLine();
+            ConsoleMG.WriteLine("DONE  Created " + count + " icon file(s).");
         }
         catch (Exception ex)
         {
-            Console.WriteLine("Error: " + ex.Message);
+            ConsoleMG.WriteLine("Error: " + ex.Message);
         }
 
         Pause();
     }
+
+    static void ProcessImageConversion(string[] args)
+    {
+        try
+        {
+            string inputPath = null;
+
+                        if (args.Length == 0)
+            {
+                ConsoleMG.WriteLine("No file selected.");
+                string historyChoice = ShowHistoryMenu();
+
+                if (historyChoice == null)
+                {
+                    Pause();
+                    return;
+                }
+                inputPath = historyChoice;
+            }
+            else
+            {
+                inputPath = args[0];
+            }
+
+            if (!File.Exists(inputPath))
+            {
+                ConsoleMG.WriteLine("File not found.");
+                Pause();
+                return;
+            }
+
+                        string ext = Path.GetExtension(inputPath).ToLower();
+            if (ext != ".png" && ext != ".jpg" && ext != ".jpeg")
+            {
+                ConsoleMG.WriteLine($"Unsupported file type: {ext}");
+                ConsoleMG.WriteLine("Supported: .png, .jpg, .jpeg");
+                Pause();
+                return;
+            }
+
+                        ConsoleMG.WriteLine("=== IMAGE FORMAT CONVERTER ===");
+            ConsoleMG.WriteLine();
+            ConsoleMG.WriteLine("File: " + Path.GetFileName(inputPath));
+            ConsoleMG.WriteLine($"Current format: {ext.ToUpper()}");
+            ConsoleMG.WriteLine();
+
+            ConsoleMG.WriteLine("Convert to:");
+
+            if (ext == ".png")
+            {
+                ConsoleMG.WriteLine("1 - JPG (Compressed, smaller file size)");
+            }
+            else             {
+                ConsoleMG.WriteLine("1 - PNG (Lossless, preserves quality)");
+            }
+
+            ConsoleMG.WriteLine("2 - Cancel");
+            ConsoleMG.WriteLine();
+
+            ConsoleMG.Write("Choose: ");
+            string choice = Console.ReadLine();
+
+            if (choice != "1")
+            {
+                ConsoleMG.WriteLine("Cancelled.");
+                Pause();
+                return;
+            }
+
+                        string outputExt = (ext == ".png") ? ".jpg" : ".png";
+            string outputPath = Path.ChangeExtension(inputPath, outputExt);
+
+            ConsoleMG.Write($"Output file [{Path.GetFileName(outputPath)}]: ");
+            string customOutput = Console.ReadLine()?.Trim('"').Trim();
+
+            if (!string.IsNullOrEmpty(customOutput))
+            {
+                                if (!customOutput.EndsWith(".png", StringComparison.OrdinalIgnoreCase) &&
+                    !customOutput.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase) &&
+                    !customOutput.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase))
+                {
+                    customOutput += outputExt;                 }
+                outputPath = customOutput;
+            }
+
+                        int quality = 90;
+            if (outputExt == ".jpg")
+            {
+                ConsoleMG.Write("Quality (1-100) [90]: ");
+                string qualityStr = Console.ReadLine()?.Trim();
+                if (!string.IsNullOrEmpty(qualityStr) && int.TryParse(qualityStr, out int q))
+                    quality = Math.Clamp(q, 1, 100);
+            }
+
+                        ConsoleMG.WriteLine();
+            ConsoleMG.Write($"Convert {Path.GetFileName(inputPath)} → {Path.GetFileName(outputPath)}? (Y/N): ");
+            string confirm = Console.ReadLine()?.Trim().ToUpper();
+
+            if (confirm != "Y")
+            {
+                ConsoleMG.WriteLine("Cancelled.");
+                Pause();
+                return;
+            }
+
+                        ConsoleMG.WriteLine();
+            ConsoleMG.WriteLine("Converting...");
+            DrawProgressBar(0, 100);
+
+            using (Bitmap original = new Bitmap(inputPath))
+            {
+                                string historyFolder = GetHistoryFolder();
+                string exeFolder = GetExeFolder();
+                string outputFolder;
+
+                if (inputPath.StartsWith(historyFolder, StringComparison.OrdinalIgnoreCase))
+                {
+                                        outputFolder = exeFolder;
+                }
+                else
+                {
+                                        outputFolder = Path.GetDirectoryName(inputPath);
+                }
+
+                                string outputFileName = Path.GetFileName(outputPath);
+                string finalOutputPath = Path.Combine(outputFolder, outputFileName);
+
+                if (outputExt == ".jpg")
+                {
+                                        var encoder = ImageCodecInfo.GetImageEncoders()
+                        .First(c => c.FormatID == ImageFormat.Jpeg.Guid);
+
+                    var encParams = new EncoderParameters(1);
+                    encParams.Param[0] = new EncoderParameter(Encoder.Quality, quality);
+
+                    original.Save(finalOutputPath, encoder, encParams);
+                }
+                else
+                {
+                                        original.Save(finalOutputPath, ImageFormat.Png);
+                }
+
+                DrawProgressBar(100, 100);
+                ConsoleMG.WriteLine();
+                ConsoleMG.WriteLine("✅ Conversion complete!");
+                outputPath = finalOutputPath;
+
+                if (!inputPath.StartsWith(historyFolder, StringComparison.OrdinalIgnoreCase))
+                {
+                    SaveToHistory(inputPath);
+                }
+            }
+
+            ConsoleMG.WriteLine();
+            ConsoleMG.WriteLine($"Saved: {outputPath}");
+            if (outputExt == ".jpg")
+                ConsoleMG.WriteLine($"Quality: {quality}%");
+        }
+        catch (Exception ex)
+        {
+            ConsoleMG.WriteLine("Error: " + ex.Message);
+        }
+
+        Pause();
+        RestartApp();
+    }
     static void Main(string[] args)
     {
+        ExtractConsoleMGDll();
+        ExtractUpdate();
+
+        string dllPath = Path.Combine(GetExeFolder(), "ConsoleMG.dll");
+        if (!File.Exists(dllPath))
+        {
+            Console.WriteLine(" CRITICAL: ConsoleMG.dll missing!");
+            Console.WriteLine("Please reinstall the application.");
+            Pause();
+            return;
+        }
         ExtractShellTool();
         LockAllHistoryFiles();
 
@@ -1115,13 +1795,13 @@ Powered by hycoredragon
             return;
         }
 
-        ToolCLI();
+        ToolCLI(args);  
 
         if (IsFirstRun())
         {
             while (true)
             {
-                Console.WriteLine("Add convertTool to Open With list? (Y/N)");
+                ConsoleMG.WriteLine("Add convertTool to Open With list? (Y/N)");
 
                 var k = Console.ReadKey(true);
                 char c = char.ToUpper(k.KeyChar);
@@ -1139,47 +1819,56 @@ Powered by hycoredragon
                 }
                 else
                 {
-                    Console.WriteLine("Please press Y or N.");
+                    ConsoleMG.WriteLine("Please press Y or N.");
                 }
             }
         }
 
         ProcessConversion(args);
     }
-    //dependency Info 
+    
+
     static void ShowCommandInfo()
     {
         ShowBanner();
-        const string tool_version = "v1.1.3";
-        const string ownered_by = "hycoredragon";
-        const string runtime_info = ".NET 8 Self-Contained";
-        const string copyright_info = "Copyright (c) 2026 hycoredragon. All rights reserved.";
-        const string discord_info = "https://discord.gg/DuH6c7hhsK";
-        const string repository_info = "https://github.com/hoangbussines-commits/convertTool";
-        const string license_info = "MIT License";
-        const string legal_info = "This tool is provided 'as-is', without any express or implied warranty. In no event will the authors be held liable for any damages arising from the use of this software.";
-        const string license_url = "https://opensource.org/licenses/MIT";
-        const string support_info = "For support, visit the Discord server linked above.";
-        const string additional_info = "This tool is developed and maintained by hycoredragon.";
-        Console.WriteLine("convertTool OK");
-        Console.WriteLine($"version: {tool_version}");
-        Console.WriteLine($"owner: {ownered_by}");
-        Console.WriteLine($"runtime: {runtime_info}");
-        Console.WriteLine($"copyright: {copyright_info}");
-        Console.WriteLine($"support: {discord_info}");
-        Console.WriteLine($"repository: {repository_info}");
-        Console.WriteLine($"license: {license_info}");
-        Console.WriteLine("legal: " + legal_info);
-        Console.WriteLine($"license url: {license_url}");
-        Console.WriteLine($"support info: {support_info}");
-        Console.WriteLine($"additional info: {additional_info}");
+        ConsoleMG.WriteLine("convertTool OK");
+        ConsoleMG.WriteLine($"version: {AppInfo.tool_version}");
+        ConsoleMG.WriteLine($"owner: {AppInfo.ownered_by}");
+        ConsoleMG.WriteLine($"runtime: {AppInfo.runtime_info}");
+        ConsoleMG.WriteLine($"copyright: {AppInfo.copyright_info}");
+        ConsoleMG.WriteLine($"support: {AppInfo.discord_info}");
+        ConsoleMG.WriteLine($"repository: {AppInfo.repository_info}");
+        ConsoleMG.WriteLine($"license: {AppInfo.license_info}");
+        ConsoleMG.WriteLine("legal: " + AppInfo.legal_info);
+        ConsoleMG.WriteLine($"license url: {AppInfo.license_url}");
+        ConsoleMG.WriteLine($"support info: {AppInfo.support_info}");
+        ConsoleMG.WriteLine($"additional info: {AppInfo.additional_info}");
+    }
 
-
+    static void ShowCommandInfoWithCLI()
+    {
+        ConsoleMG.WriteLine("===========================================");
+        ConsoleMG.WriteLine("              CONVERT TOOL INFO           ");
+        ConsoleMG.WriteLine("===========================================");
+        ConsoleMG.WriteLine($"version: {AppInfo.tool_version}");
+        ConsoleMG.WriteLine($"owner: {AppInfo.ownered_by}");
+        ConsoleMG.WriteLine($"runtime: {AppInfo.runtime_info}");
+        ConsoleMG.WriteLine($"copyright: {AppInfo.copyright_info}");
+        ConsoleMG.WriteLine($"support: {AppInfo.discord_info}");
+        ConsoleMG.WriteLine($"repository: {AppInfo.repository_info}");
+        ConsoleMG.WriteLine($"license: {AppInfo.license_info}");
+        ConsoleMG.WriteLine("legal: " + AppInfo.legal_info);
+        ConsoleMG.WriteLine($"license url: {AppInfo.license_url}");
+        ConsoleMG.WriteLine($"support info: {AppInfo.support_info}");
+        ConsoleMG.WriteLine($"additional info: {AppInfo.additional_info}");
+        ConsoleMG.WriteLine("===========================================");
+        ConsoleMG.WriteLine("End of Info");
+        ConsoleMG.WriteLine("===========================================");
     }
     static void Pause()
     {
-        Console.WriteLine();
-        Console.WriteLine("Press any key to exit...");
+        ConsoleMG.WriteLine();
+        ConsoleMG.WriteLine("Press any key to exit...");
         Console.ReadKey();
     }
 }
